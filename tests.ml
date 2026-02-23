@@ -142,6 +142,17 @@ let test_float = [
   "inverse of/to_f", `Quick, test_inv_f
 ]
 
+let test_of_string =
+  Alcotest.test_case "of_string_exn" `Quick @@ fun () ->
+  Alcotest.(check int64) "1 day" (Duration.of_string_exn "1d") (Duration.of_day 1);
+  Alcotest.(check int64) "42 day" (Duration.of_string_exn "42d") (Duration.of_day 42);
+  Alcotest.(check int64) "1 year" (Duration.of_string_exn "1y") (Duration.of_year 1);
+  let n = Duration.of_day 1 in
+  let n = Int64.add (Duration.of_year 1) n in
+  Alcotest.(check int64) "1 day and 1 year"
+    (Duration.of_string_exn "1d1y") n
+
+
 let dur_tests =
   List.flatten [
     test_of_us ;
@@ -151,7 +162,8 @@ let dur_tests =
     test_of_hour ;
     test_of_day ;
     test_of_year ;
-    test_float
+    test_float ;
+    [ test_of_string ];
   ]
 
 

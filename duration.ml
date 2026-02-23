@@ -1,3 +1,5 @@
+let invalid_arg fmt = Format.kasprintf invalid_arg fmt
+
 type t = int64
 
 let of_us_64 m =
@@ -157,3 +159,50 @@ let pp ppf t =
       Format.fprintf ppf "%Ld.%03Ldms" ms us
     else (* if us > 0 then *)
       Format.fprintf ppf "%Ld.%03Ldμs" us ns
+
+let is_digit = function '0' .. '9' -> true | _ -> false
+let is_metric = function 's' | 'm' | 'h' | 'd' | 'y' -> true | _ -> false
+
+let split_on fn str =
+  let r = ref [] in
+  let j = ref (String.length str) in
+  for i = String.length str - 1 downto 0 do
+    if fn str.[i] then begin
+      let sub = String.sub str (i+1) (!j - i - 1) in
+      let metric = `Metric str.[i] in
+      r := metric :: `Value sub :: !r;
+      j := i;
+    end
+  done;
+  let pre = String.sub str 0 !j in
+  `Value pre :: !r
+
+let of_metric chr v = match chr with
+  | 's' -> of_sec v
+  | 'm' -> of_min v
+  | 'h' -> of_hour v
+  | 'd' -> of_day v
+  | 'y' -> of_year v
+  | chr -> invalid_arg "Invalid metric '%c'" chr
+
+let of_string_exn str =
+  let lst = split_on is_metric str in
+  let metric_to_int = function
+    | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' -> 4
+    | _ -> assert false in
+  let metrics = Array.make 5 false in
+  let rec go acc = function
+    | `Value v :: `Metric m :: rest ->
+        Format.printf ">>> %s\n%!" v;
+        Format.printf ">>> %c\n%!" m;
+        if metrics.(metric_to_int m)
+        then invalid_arg "Multiple use of the metric '%c'" m;
+        if String.for_all is_digit v = false && String.length v > 0
+        then invalid_arg "Invalid value %s%c" v m;
+        let v = int_of_string v in
+        metrics.(metric_to_int m) <- true;
+        let acc = Int64.add acc (of_metric m v) in
+        go acc rest
+    | [] | [`Value ""]-> acc
+    | _ -> invalid_arg "Invalid metric: %S" str in
+  go 0L lst
