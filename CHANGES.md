@@ -1,3 +1,7 @@
+## v0.3.0 (2026-04-13)
+
+* Add Duration.of_string and Duration.of_string_exn (#10 @dinosaure)
+
 ## v0.2.1 (2022-10-11)
 
 * Duration.pp: microseconds suffix is now "μs" instead of "us" (#8 by @MisterDA)
