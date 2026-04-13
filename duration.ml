@@ -1,3 +1,5 @@
+let invalid_arg fmt = Format.kasprintf invalid_arg fmt
+
 type t = int64
 
 let of_us_64 m =
@@ -157,3 +159,76 @@ let pp ppf t =
       Format.fprintf ppf "%Ld.%03Ldms" ms us
     else (* if us > 0 then *)
       Format.fprintf ppf "%Ld.%03Ldμs" us ns
+
+let is_digit = function '0' .. '9' -> true | _ -> false
+
+let split_on fn str =
+  let r = ref [] in
+  let j = ref (String.length str) in
+  let i = ref (!j - 1) in
+  while !i >= 0 do
+    if fn str.[!i] then begin
+      let x = String.sub str (!i+1) (!j - !i - 1) in
+      let a = !i in
+      while decr i; !i >= 0 && fn str.[!i] do () done;
+      if !i >= 0 then begin
+        let y = String.sub str (!i+1) (a - !i) in
+        r := y :: x :: !r;
+        j := !i+1
+      end else begin
+        let y = String.sub str 0 (a+1) in
+        r := y :: x :: !r;
+        j := 0
+      end
+    end else decr i
+  done;
+  let x = String.sub str 0 !j in
+  if String.length x > 0 then x :: !r else !r
+
+let of_metric chr v = match chr with
+  | 's' -> of_sec v
+  | 'm' -> of_min v
+  | 'h' -> of_hour v
+  | 'd' -> of_day v
+  | 'y' | 'a' -> of_year v
+  | chr -> invalid_arg "Invalid metric '%c'" chr
+
+let of_string_exn str =
+  let lst = split_on is_digit str in
+  let metric_to_int = function
+    | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' | 'a' -> 4
+    | _ -> assert false in
+  let metrics = Array.make 7 false in
+  let to_int v =
+    try int_of_string v
+    with Failure _ -> invalid_arg "Invalid value in %S" str in
+  let rec go acc = function
+    | v :: ("s" | "m" | "h" | "d" | "y" | "a" as m) :: rest ->
+        if metrics.(metric_to_int m.[0])
+        then invalid_arg "Multiple use of the metric '%s'" m;
+        let v = to_int v in
+        metrics.(metric_to_int m.[0]) <- true;
+        let acc = Int64.add acc (of_metric m.[0] v) in
+        go acc rest
+    | v :: "ms" :: rest ->
+        if metrics.(5) then invalid_arg "Multiple use of the metric 'ms'";
+        let v = to_int v in
+        metrics.(5) <- true;
+        let acc = Int64.add acc (of_ms v) in
+        go acc rest
+    | v :: "ns" :: rest ->
+        if metrics.(6) then invalid_arg "Multiple use of the metric 'ns'";
+        let v = to_int v in
+        metrics.(6) <- true;
+        let acc = Int64.add acc (Int64.of_int v) in
+        go acc rest
+    | [] ->
+        if not (Array.exists (fun b -> b) metrics)
+        then invalid_arg "Invalid metric: %S" str;
+        acc
+    | _ -> invalid_arg "Invalid metric: %S" str in
+  go 0L lst
+
+let of_string str =
+  try Ok (of_string_exn str)
+  with Invalid_argument msg | Failure msg -> Error (`Msg msg)

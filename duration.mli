@@ -11,7 +11,7 @@
     {e %%VERSION%% - {{:%%PKG_HOMEPAGE%% }homepage}}
 *)
 
-(** The type for a duration, exposed as an int64 to provide interoperability. *)
+(** The type for a duration (in nanoseconds), exposed as an int64 to provide interoperability. *)
 type t = int64
 
 (** [pp ppf t] prints the duration in a concise way. *)
@@ -84,3 +84,21 @@ val to_year : t -> int
 (** [to_f t] is the floating point representation of [t]. *)
 val to_f : t -> float
 
+val of_string_exn : string -> t
+(** [of_string_exn str] tries to parse [str] and calculate a duration. The user
+    can specify a duration via metrics:
+    - [1ns] for one nanoseconds
+    - [1ms] for one milliseconds
+    - [1s] for one second
+    - [1m] for one minute
+    - [1h] for one hour
+    - [1d] for one day
+    - [1y]/[1a] for one year
+
+    The user can use multiple metrics but they can be used only once. [1d1d] is
+    invalid (you can use [2d]) but [1d1y] is valid and correspond to
+    1 year plus 1 day. *)
+
+val of_string : string -> (t, [> `Msg of string ]) result
+(** [of_string] is {!val:of_string_exn} but it returns a result instead of
+    raising an exception. *)

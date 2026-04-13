@@ -142,6 +142,126 @@ let test_float = [
   "inverse of/to_f", `Quick, test_inv_f
 ]
 
+let test_of_string =
+  Alcotest.test_case "of_string_exn" `Quick @@ fun () ->
+  Alcotest.(check int64) "1s" (Duration.of_string_exn "1s") (Duration.of_sec 1);
+  Alcotest.(check int64) "1m" (Duration.of_string_exn "1m") (Duration.of_min 1);
+  Alcotest.(check int64) "1h" (Duration.of_string_exn "1h") (Duration.of_hour 1);
+  Alcotest.(check int64) "42d" (Duration.of_string_exn "42d") (Duration.of_day 42);
+  Alcotest.(check int64) "1y" (Duration.of_string_exn "1y") (Duration.of_year 1);
+  Alcotest.(check int64) "1ms" (Duration.of_string_exn "1ms") (Duration.of_ms 1);
+  Alcotest.(check int64) "1ns" (Duration.of_string_exn "1ns") 1L;
+  Alcotest.(check int64) "0s" (Duration.of_string_exn "0s") 0L;
+  Alcotest.(check int64) "0ns" (Duration.of_string_exn "0ns") 0L;
+  Alcotest.(check int64) "100ms" (Duration.of_string_exn "100ms") (Duration.of_ms 100);
+  Alcotest.(check int64) "500ns" (Duration.of_string_exn "500ns") 500L;
+  Alcotest.(check int64) "10h" (Duration.of_string_exn "10h") (Duration.of_hour 10);
+  Alcotest.(check int64) "42a" (Duration.of_string_exn "42a") (Duration.of_year 42)
+
+let test_of_string_composite =
+  let ( + ) = Int64.add in
+  Alcotest.test_case "of_string_exn: composite" `Quick @@ fun () ->
+  Alcotest.(check int64) "1h30m15s"
+    (Duration.of_string_exn "1h30m15s")
+    (Duration.of_hour 1 + Duration.of_min 30 + Duration.of_sec 15);
+  Alcotest.(check int64) "100ms500ns"
+    (Duration.of_string_exn "100ms500ns")
+    (Duration.of_ms 100 + 500L);
+  Alcotest.(check int64) "1m1s = 1s1m (order independence)"
+    (Duration.of_string_exn "1m1s")
+    (Duration.of_string_exn "1s1m");
+  Alcotest.(check int64) "all metrics: 1y1d1h1m1s1ms1ns"
+    (Duration.of_string_exn "1y1d1h1m1s1ms1ns")
+    (Duration.of_year 1 + Duration.of_day 1 + Duration.of_hour 1 +
+     Duration.of_min 1 + Duration.of_sec 1 + Duration.of_ms 1 + 1L);
+  Alcotest.(check int64) "1m30s"
+    (Duration.of_string_exn "1m30s")
+    (Duration.of_min 1 + Duration.of_sec 30);
+  Alcotest.(check int64) "1d12h"
+    (Duration.of_string_exn "1d12h")
+    (Duration.of_day 1 + Duration.of_hour 12);
+  Alcotest.(check int64) "1m1ms"
+    (Duration.of_string_exn "1m1ms")
+    (Duration.of_min 1 + Duration.of_ms 1);
+  Alcotest.(check int64) "1s1ns"
+    (Duration.of_string_exn "1s1ns")
+    (Duration.of_sec 1 + 1L);
+  Alcotest.(check int64) "1ms1s (ms before s)"
+    (Duration.of_string_exn "1ms1s")
+    (Duration.of_ms 1 + Duration.of_sec 1);
+  Alcotest.(check int64) "1ns1ms1s (ns, ms, s)"
+    (Duration.of_string_exn "1ns1ms1s")
+    (1L + Duration.of_ms 1 + Duration.of_sec 1)
+
+let check_raises_exn msg f =
+  let raised = try f (); false with _ -> true in
+  Alcotest.(check bool) msg true raised
+
+let test_of_string_duplicate_errors =
+  Alcotest.test_case "of_string_exn: duplicate metrics" `Quick @@ fun () ->
+  let invalid_argf fmt = Fmt.kstr (fun msg -> Invalid_argument msg) fmt in
+  Alcotest.check_raises "duplicate d" (invalid_argf "Multiple use of the metric 'd'")
+    (fun () -> ignore (Duration.of_string_exn "1d1d"));
+  Alcotest.check_raises "duplicate s" (invalid_argf "Multiple use of the metric 's'")
+    (fun () -> ignore (Duration.of_string_exn "1s1s"));
+  Alcotest.check_raises "duplicate ms" (invalid_argf "Multiple use of the metric 'ms'")
+    (fun () -> ignore (Duration.of_string_exn "1ms1ms"));
+  Alcotest.check_raises "duplicate ns" (invalid_argf "Multiple use of the metric 'ns'")
+    (fun () -> ignore (Duration.of_string_exn "1ns1ns"))
+
+let test_of_string_invalid_metric =
+  Alcotest.test_case "of_string_exn: invalid metric" `Quick @@ fun () ->
+  let invalid_argf fmt = Fmt.kstr (fun msg -> Invalid_argument msg) fmt in
+  Alcotest.check_raises "metric x" (invalid_argf "Invalid metric: \"1x\"")
+    (fun () -> ignore (Duration.of_string_exn "1x"));
+  Alcotest.check_raises "metric w" (invalid_argf "Invalid metric: \"1w\"")
+    (fun () -> ignore (Duration.of_string_exn "1w"));
+  Alcotest.check_raises "metric mn" (invalid_argf "Invalid metric: \"1mn\"")
+    (fun () -> ignore (Duration.of_string_exn "1mn"));
+  Alcotest.check_raises "metric D (uppercase)" (invalid_argf "Invalid metric: \"1D\"")
+    (fun () -> ignore (Duration.of_string_exn "1D"))
+
+let test_of_string_malformed =
+  Alcotest.test_case "of_string_exn: malformed input" `Quick @@ fun () ->
+  let invalid_argf fmt = Fmt.kstr (fun msg -> Invalid_argument msg) fmt in
+  Alcotest.check_raises "only metric d" (invalid_argf "Invalid metric: \"d\"")
+    (fun () -> ignore (Duration.of_string_exn "d"));
+  Alcotest.check_raises "only metric s" (invalid_argf "Invalid metric: \"s\"")
+    (fun () -> ignore (Duration.of_string_exn "s"));
+  Alcotest.check_raises "only number" (invalid_argf "Invalid metric: \"123\"")
+    (fun () -> ignore (Duration.of_string_exn "123"));
+  Alcotest.check_raises "trailing number" (invalid_argf "Invalid metric: \"1s2\"")
+    (fun () -> ignore (Duration.of_string_exn "1s2"));
+  Alcotest.check_raises "negative" (invalid_argf "Invalid metric: \"-1d\"")
+    (fun () -> ignore (Duration.of_string_exn "-1d"));
+  Alcotest.check_raises "decimal" (invalid_argf "Invalid metric: \"1.5s\"")
+    (fun () -> ignore (Duration.of_string_exn "1.5s"));
+  Alcotest.check_raises "spaces" (invalid_argf "Invalid metric: \"1 d\"")
+    (fun () -> ignore (Duration.of_string_exn "1 d"));
+  Alcotest.check_raises "metric before number" (invalid_argf "Invalid metric: \"d1\"")
+    (fun () -> ignore (Duration.of_string_exn "d1"));
+  Alcotest.check_raises "letters only" (invalid_argf "Invalid metric: \"abc\"")
+    (fun () -> ignore (Duration.of_string_exn "abc"))
+
+let test_of_string_overflow =
+  Alcotest.test_case "of_string_exn: out of range" `Quick @@ fun () ->
+  let invalid_argf fmt = Fmt.kstr (fun msg -> Invalid_argument msg) fmt in
+  Alcotest.check_raises "days out of range" (invalid_argf "out of range")
+    (fun () -> ignore (Duration.of_string_exn "999999d"));
+  Alcotest.check_raises "years out of range" (invalid_argf "out of range")
+    (fun () -> ignore (Duration.of_string_exn "1000y"))
+
+let test_of_string_empty =
+  Alcotest.test_case "of_string_exn: empty string" `Quick @@ fun () ->
+  let invalid_argf fmt = Fmt.kstr (fun msg -> Invalid_argument msg) fmt in
+  Alcotest.check_raises "empty string should raise" (invalid_argf "Invalid metric: \"\"")
+    (fun () -> ignore (Duration.of_string_exn ""))
+
+let test_string =
+  [ test_of_string; test_of_string_composite; test_of_string_duplicate_errors
+  ; test_of_string_invalid_metric; test_of_string_malformed
+  ; test_of_string_overflow; test_of_string_empty ]
+
 let dur_tests =
   List.flatten [
     test_of_us ;
@@ -151,7 +271,8 @@ let dur_tests =
     test_of_hour ;
     test_of_day ;
     test_of_year ;
-    test_float
+    test_float ;
+    test_string ;
   ]
 
 
