@@ -190,17 +190,17 @@ let of_metric chr v = match chr with
   | 'm' -> of_min v
   | 'h' -> of_hour v
   | 'd' -> of_day v
-  | 'y' -> of_year v
+  | 'y' | 'a' -> of_year v
   | chr -> invalid_arg "Invalid metric '%c'" chr
 
 let of_string_exn str =
   let lst = split_on is_digit str in
   let metric_to_int = function
-    | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' -> 4
+    | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' | 'a' -> 4
     | _ -> assert false in
   let metrics = Array.make 7 false in
   let rec go acc = function
-    | v :: ("s" | "m" | "h" | "d" | "y" as m) :: rest ->
+    | v :: ("s" | "m" | "h" | "d" | "y" | "a" as m) :: rest ->
         if metrics.(metric_to_int m.[0])
         then invalid_arg "Multiple use of the metric '%s'" m;
         let v = int_of_string v in
@@ -225,4 +225,4 @@ let of_string_exn str =
 
 let of_string str =
   try Ok (of_string_exn str)
-  with Invalid_argument msg -> Error (`Msg msg)
+  with Invalid_argument msg | Failure msg -> Error (`Msg msg)
