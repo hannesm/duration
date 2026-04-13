@@ -222,3 +222,7 @@ let of_string_exn str =
     | [] -> acc
     | _ -> invalid_arg "Invalid metric: %S" str in
   go 0L lst
+
+let of_string str =
+  try Ok (of_string_exn str)
+  with Invalid_argument msg -> Error (`Msg msg)

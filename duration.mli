@@ -96,3 +96,5 @@ val of_string_exn : string -> t
     The user can use multiple metrics but they can be used only once. [1d1d] is
     invalid (and you should prefer [2d]) but [1d1y] is valid and correspond to
     1 year plus 1 day. *)
+
+val of_string : string -> (t, [> `Msg of string ]) result
