@@ -149,9 +149,8 @@ let test_of_string =
   Alcotest.(check int64) "1 year" (Duration.of_string_exn "1y") (Duration.of_year 1);
   let n = Duration.of_day 1 in
   let n = Int64.add (Duration.of_year 1) n in
-  Alcotest.(check int64) "1 day and 1 year"
-    (Duration.of_string_exn "1d1y") n
-
+  Alcotest.(check int64) "1 day and 1 year" (Duration.of_string_exn "1d1y") n;
+  Alcotest.(check int64) "1ns" (Duration.of_string_exn "1ns") 1L
 
 let dur_tests =
   List.flatten [

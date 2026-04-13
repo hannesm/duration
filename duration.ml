@@ -161,21 +161,29 @@ let pp ppf t =
       Format.fprintf ppf "%Ld.%03Ldμs" us ns
 
 let is_digit = function '0' .. '9' -> true | _ -> false
-let is_metric = function 's' | 'm' | 'h' | 'd' | 'y' -> true | _ -> false
 
 let split_on fn str =
   let r = ref [] in
   let j = ref (String.length str) in
-  for i = String.length str - 1 downto 0 do
-    if fn str.[i] then begin
-      let sub = String.sub str (i+1) (!j - i - 1) in
-      let metric = `Metric str.[i] in
-      r := metric :: `Value sub :: !r;
-      j := i;
-    end
+  let i = ref (!j - 1) in
+  while !i >= 0 do
+    if fn str.[!i] then begin
+      let x = String.sub str (!i+1) (!j - !i - 1) in
+      let a = !i in
+      while decr i; !i >= 0 && fn str.[!i] do () done;
+      if !i >= 0 then begin
+        let y = String.sub str (!i+1) (a - !i) in
+        r := y :: x :: !r;
+        j := !i+1
+      end else begin
+        let y = String.sub str 0 (a+1) in
+        r := y :: x :: !r;
+        j := 0
+      end
+    end else decr i
   done;
-  let pre = String.sub str 0 !j in
-  `Value pre :: !r
+  let x = String.sub str 0 !j in
+  if String.length x > 0 then x :: !r else !r
 
 let of_metric chr v = match chr with
   | 's' -> of_sec v
@@ -186,23 +194,31 @@ let of_metric chr v = match chr with
   | chr -> invalid_arg "Invalid metric '%c'" chr
 
 let of_string_exn str =
-  let lst = split_on is_metric str in
+  let lst = split_on is_digit str in
   let metric_to_int = function
     | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' -> 4
     | _ -> assert false in
-  let metrics = Array.make 5 false in
+  let metrics = Array.make 7 false in
   let rec go acc = function
-    | `Value v :: `Metric m :: rest ->
-        Format.printf ">>> %s\n%!" v;
-        Format.printf ">>> %c\n%!" m;
-        if metrics.(metric_to_int m)
-        then invalid_arg "Multiple use of the metric '%c'" m;
-        if String.for_all is_digit v = false && String.length v > 0
-        then invalid_arg "Invalid value %s%c" v m;
+    | v :: ("s" | "m" | "h" | "d" | "y" as m) :: rest ->
+        if metrics.(metric_to_int m.[0])
+        then invalid_arg "Multiple use of the metric '%s'" m;
         let v = int_of_string v in
-        metrics.(metric_to_int m) <- true;
-        let acc = Int64.add acc (of_metric m v) in
+        metrics.(metric_to_int m.[0]) <- true;
+        let acc = Int64.add acc (of_metric m.[0] v) in
         go acc rest
-    | [] | [`Value ""]-> acc
+    | v :: "ms" :: rest ->
+        if metrics.(5) then invalid_arg "Multiple use of the metric 'ms'";
+        let v = int_of_string v in
+        metrics.(5) <- true;
+        let acc = Int64.add acc (of_ms v) in
+        go acc rest
+    | v :: "ns" :: rest ->
+        if metrics.(6) then invalid_arg "Multiple use of the metric 'ns'";
+        let v = int_of_string v in
+        metrics.(6) <- true;
+        let acc = Int64.add acc (Int64.of_int v) in
+        go acc rest
+    | [] -> acc
     | _ -> invalid_arg "Invalid metric: %S" str in
   go 0L lst
