@@ -199,27 +199,33 @@ let of_string_exn str =
     | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' | 'a' -> 4
     | _ -> assert false in
   let metrics = Array.make 7 false in
+  let to_int v =
+    try int_of_string v
+    with Failure _ -> invalid_arg "Invalid value in %S" str in
   let rec go acc = function
     | v :: ("s" | "m" | "h" | "d" | "y" | "a" as m) :: rest ->
         if metrics.(metric_to_int m.[0])
         then invalid_arg "Multiple use of the metric '%s'" m;
-        let v = int_of_string v in
+        let v = to_int v in
         metrics.(metric_to_int m.[0]) <- true;
         let acc = Int64.add acc (of_metric m.[0] v) in
         go acc rest
     | v :: "ms" :: rest ->
         if metrics.(5) then invalid_arg "Multiple use of the metric 'ms'";
-        let v = int_of_string v in
+        let v = to_int v in
         metrics.(5) <- true;
         let acc = Int64.add acc (of_ms v) in
         go acc rest
     | v :: "ns" :: rest ->
         if metrics.(6) then invalid_arg "Multiple use of the metric 'ns'";
-        let v = int_of_string v in
+        let v = to_int v in
         metrics.(6) <- true;
         let acc = Int64.add acc (Int64.of_int v) in
         go acc rest
-    | [] -> acc
+    | [] ->
+        if not (Array.exists (fun b -> b) metrics)
+        then invalid_arg "Invalid metric: %S" str;
+        acc
     | _ -> invalid_arg "Invalid metric: %S" str in
   go 0L lst
 
