@@ -87,14 +87,18 @@ val to_f : t -> float
 val of_string_exn : string -> t
 (** [of_string_exn str] tries to parse [str] and calculate a duration. The user
     can specify a duration via metrics:
-    - [1d] for one day
+    - [1ns] for one nanoseconds
+    - [1ms] for one milliseconds
     - [1s] for one second
     - [1m] for one minute
     - [1h] for one hour
-    - [1y] for one year
+    - [1d] for one day
+    - [1y]/[1a] for one year
 
     The user can use multiple metrics but they can be used only once. [1d1d] is
-    invalid (and you should prefer [2d]) but [1d1y] is valid and correspond to
+    invalid (you can use [2d]) but [1d1y] is valid and correspond to
     1 year plus 1 day. *)
 
 val of_string : string -> (t, [> `Msg of string ]) result
+(** [of_string] is {!val:of_string_exn} but it returns a result instead of
+    raising an exception. *)
