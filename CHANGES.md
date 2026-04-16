@@ -1,3 +1,7 @@
+## v0.3.1 (2026-04-16)
+
+* Support micro seconds in of_string (#11 @reynir)
+
 ## v0.3.0 (2026-04-13)
 
 * Add Duration.of_string and Duration.of_string_exn (#10 @dinosaure)
