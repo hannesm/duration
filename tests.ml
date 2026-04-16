@@ -156,7 +156,10 @@ let test_of_string =
   Alcotest.(check int64) "100ms" (Duration.of_string_exn "100ms") (Duration.of_ms 100);
   Alcotest.(check int64) "500ns" (Duration.of_string_exn "500ns") 500L;
   Alcotest.(check int64) "10h" (Duration.of_string_exn "10h") (Duration.of_hour 10);
-  Alcotest.(check int64) "42a" (Duration.of_string_exn "42a") (Duration.of_year 42)
+  Alcotest.(check int64) "42a" (Duration.of_string_exn "42a") (Duration.of_year 42);
+  Alcotest.(check int64) "11us" (Duration.of_string_exn "11us") (Duration.of_us 11);
+  Alcotest.(check int64) "12µs (micro sign)" (Duration.of_string_exn "12µs") (Duration.of_us 12);
+  Alcotest.(check int64) "13μs (greek small letter mu)" (Duration.of_string_exn "13μs") (Duration.of_us 13)
 
 let test_of_string_composite =
   let ( + ) = Int64.add in

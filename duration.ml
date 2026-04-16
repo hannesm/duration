@@ -158,6 +158,8 @@ let pp ppf t =
     else if ms > 0L then
       Format.fprintf ppf "%Ld.%03Ldms" ms us
     else (* if us > 0 then *)
+      (* We use greek small letter mu (μ) over micro sign (µ) as recommended by
+         The Unicode Consortium. *)
       Format.fprintf ppf "%Ld.%03Ldμs" us ns
 
 let is_digit = function '0' .. '9' -> true | _ -> false
@@ -198,7 +200,7 @@ let of_string_exn str =
   let metric_to_int = function
     | 's' -> 0 | 'm' -> 1 | 'h' -> 2 | 'd' -> 3 | 'y' | 'a' -> 4
     | _ -> assert false in
-  let metrics = Array.make 7 false in
+  let metrics = Array.make 8 false in
   let to_int v =
     try int_of_string v
     with Failure _ -> invalid_arg "Invalid value in %S" str in
@@ -216,10 +218,17 @@ let of_string_exn str =
         metrics.(5) <- true;
         let acc = Int64.add acc (of_ms v) in
         go acc rest
-    | v :: "ns" :: rest ->
-        if metrics.(6) then invalid_arg "Multiple use of the metric 'ns'";
+    | v :: ("us" | (* micro sign *) "µs" | (* greek small letter mu *) "μs" as metric) :: rest ->
+        if metrics.(6) then
+          invalid_arg "Multiple use of the metrics '%s'" metric;
         let v = to_int v in
         metrics.(6) <- true;
+        let acc = Int64.add acc (of_us v) in
+        go acc rest
+    | v :: "ns" :: rest ->
+        if metrics.(7) then invalid_arg "Multiple use of the metric 'ns'";
+        let v = to_int v in
+        metrics.(7) <- true;
         let acc = Int64.add acc (Int64.of_int v) in
         go acc rest
     | [] ->
