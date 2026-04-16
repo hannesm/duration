@@ -88,6 +88,7 @@ val of_string_exn : string -> t
 (** [of_string_exn str] tries to parse [str] and calculate a duration. The user
     can specify a duration via metrics:
     - [1ns] for one nanoseconds
+    - [1us], [1μs] or [1µs] for one microsecond
     - [1ms] for one milliseconds
     - [1s] for one second
     - [1m] for one minute
